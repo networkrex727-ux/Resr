@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>WinGo Game Interface</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+<script>
+tailwind.config = {
+  darkMode: "class",
+  theme: {
+    extend: {
+      colors: {
+        primary: "#36e27b",
+        "background-light": "#f6f8f7",
+        "background-dark": "#112117",
+        "surface-light": "#ffffff",
+        "surface-dark": "#3c3742",
+        "text-light": "#1f2937",
+        "text-dark": "#e5e7eb",
+        "text-muted-light": "#6b7280",
+        "text-muted-dark": "#9ca3af"
+      },
+      fontFamily: { display: "Manrope" },
+      borderRadius: { DEFAULT: "0.25rem", lg: "0.5rem", xl: "0.75rem", full: "9999px" }
+    }
+  }
+};
+</script>
+<style>
+.timer-segment { background-color: #000; color: #fff; padding: 0.25rem 0.375rem; border-radius: 0.25rem; font-family: monospace; font-weight: bold; }
+body { min-height: max(884px, 100dvh); }
+.number-full { width: 100%; height: 100%; object-fit: contain; }
+.pulse-red { animation: pulse-red 1s infinite; }
+@keyframes pulse-red { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+.modal-slide-up { animation: slideUp 0.3s ease-out; }
+@keyframes slideUp { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+/* Win/Loss Animations */
+@keyframes winBounce {
+0% { transform: scale(0.3) rotate(0deg); opacity: 0; }
+50% { transform: scale(1.1) rotate(5deg); }
+70% { transform: scale(0.9) rotate(-5deg); }
+100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+
+@keyframes lossFadeIn {
+0% { transform: scale(0.8); opacity: 0; }
+100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes coinRain {
+0% { transform: translateY(-100px) rotate(0deg); opacity: 1; }
+100% { transform: translateY(100vh) rotate(360deg); opacity: 0; }
+}
+
+@keyframes firework {
+0% { transform: scale(0); opacity: 1; }
+50% { opacity: 1; }
+100% { transform: scale(1); opacity: 0; }
+}
+
+/* New Win/Loss Frame Styles */
+.modal-gradient {
+  background: linear-gradient(180deg, #FF7E5F 0%, #F44336 100%);
+}
+.gold-glow {
+  filter: drop-shadow(0 0 12px rgba(255, 215, 0, 0.7));
+}
+.ticket-cut {
+  clip-path: polygon(0 0, 100% 0, 100% 90%, 95% 100%, 5% 100%, 0% 90%);
+}
+@keyframes pulse-timer {
+  0% { opacity: 1; }
+  50% { opacity: 0.5; }
+  100% { opacity: 1; }
+}
+.timer-animate {
+  animation: pulse-timer 1s infinite ease-in-out;
+}
+
+.win-animation { animation: winBounce 0.8s ease-out forwards; }
+.loss-animation { animation: lossFadeIn 0.5s ease-out forwards; }
+.coin { position: absolute; animation: coinRain 2s linear forwards; }
+.firework { position: absolute; width: 8px; height: 8px; border-radius: 50%; animation: firework 1s ease-out forwards; }
+
+/* Auto Close Timer */
+.auto-close-timer {
+background: rgba(0, 0, 0, 0.7);
+color: white;
+border-radius: 20px;
+font-weight: bold;
+font-family: monospace;
+box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+}
+</style>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display">
+<div class="max-w-sm mx-auto bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark min-h-screen">
+
+  <!-- BALANCE HEADER (Rounded Edges Added) -->
+  <header class="p-4 bg-surface-light dark:bg-surface-dark/50 relative overflow-hidden rounded-b-[2.5rem] shadow-lg border-b border-white/10">
+    <div class="absolute -top-1/2 -left-1/4 w-full h-full bg-blue-500/10 dark:bg-blue-900/20 rounded-full blur-3xl opacity-50"></div>
+    <div class="relative z-10 flex flex-col items-center">
+      <div class="flex items-center text-sm text-text-muted-light dark:text-text-muted-dark">
+        <span class="material-icons text-sm mr-1 text-yellow-400">account_balance_wallet</span> Wallet balance
+      </div>
+      <div class="flex items-center justify-center mt-1">
+        <div class="text-3xl font-bold" id="walletBalance">₹100000.00</div>
+        <span class="material-icons text-text-muted-light dark:text-text-muted-dark ml-2 cursor-pointer">refresh</span>
+      </div>
+      <div class="grid grid-cols-2 gap-4 mt-4 w-full">
+        <button class="w-full bg-red-600 text-white font-bold py-2.5 rounded-full shadow-md">Withdraw</button>
+        <button class="w-full bg-green-500 text-white font-bold py-2.5 rounded-full shadow-md">Deposit</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="p-4 space-y-4">
+    <!-- Announcement Bar -->
+    <div class="flex items-center justify-between bg-surface-light dark:bg-surface-dark rounded-full p-2 text-xs">
+      <div class="flex items-center">
+        <span class="material-icons text-yellow-500 mx-2">volume_up</span>
+        <span class="text-text-muted-light dark:text-text-muted-dark">Welcome to TASHANWIN game platform...</span>
+      </div>
+      <button class="bg-primary text-black px-4 py-1.5 rounded-full font-semibold">Detail</button>
+    </div>
+
+    <!-- Game Mode Selection -->
+    <div class="grid grid-cols-4 gap-2 text-center text-xs" id="modeContainer">
+      <div class="mode-btn bg-primary/20 dark:bg-primary/30 border border-primary text-primary rounded-lg p-2 flex flex-col items-center justify-center cursor-pointer" data-time="30">
+        <img class="w-6 h-6 mb-1 rounded-full" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCuQMloHirVawcwMhrY07dtiwhqTpYWdFK5C9yuSCBi93WZwXMQVSB7sqEo5HJgNy4hMWQ7OKwbPRtfLkbbzyrcFMZmaOSkiJ01LjsamJoTH9woyGVpPf2GJR_1RX2LtJZvEZUHgfdSNqMURnxivjR0geopmcNemxuEFzNLjBbmZVE9jBoOAgkr6aJ7WnVro1XaF_PI6nh--VQv08O9kE1iho9PeVd53mr9qX62BApQg2mFTxl9oaCLqVXT84tEa2K9K27xwYNH-VQ"/>
+        <span class="font-semibold">WinGo 30s</span>
+      </div>
+      <div class="mode-btn bg-surface-light dark:bg-surface-dark rounded-lg p-2 flex flex-col items-center justify-center text-text-muted-dark cursor-pointer" data-time="60">
+        <img class="w-6 h-6 mb-1 rounded-full" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBh7EHjQmoLha5iV-c4oRaYBkdJ1wFA8MSIQblvK1B94xMwZqiA0uEoYb8dbKnlm65AtSbVh-2SH8vIx1Bdedsue0ksfNTp7IlliWZrWCii4LhjxAPMzfzSMHvzVvjWYuxiQvrjgVjceExbzXnY6E3sq2LUNLEKsU0ph_nCZ8zWD9b72xiuy2_ih0JYVW51CyF-lz2NiPoWpjBXk68w9QjCtwn3qJi-yEuGZGdCBcwmXJg1gB0TpKYoSP0zXIq8GTLKxxxy6cJbI70"/>
+        <span>WinGo 1m</span>
+      </div>
+      <div class="mode-btn bg-surface-light dark:bg-surface-dark rounded-lg p-2 flex flex-col items-center justify-center text-text-muted-dark cursor-pointer" data-time="180">
+        <img class="w-6 h-6 mb-1 rounded-full" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDWAMInJ6AJbaUzbz-PF-bdlFlo4tp_8-Kyh-rVWfOhrF-PDaDrFCjWlyTK32KpmLyt74pM-ZhSx1CZGAZ5mZiS5DIomMqDbF9rZe0xT6mM4uFKWy9YKdxjVIic1_Twh9dKSXYyU4Q587_yLT7jJCWfli0aAod-ebtm4Ph7CQ-iCX7duSgQogzJCs34c_f8hEBtjCHSYD463ahIs2W9LiHOJecw8OgmdPuDjFOE8lmAXdoxKWdSQzRKKQ4Mt1MpcgAPE5vJwnXnUBQ"/>
+        <span>WinGo 3m</span>
+      </div>
+      <div class="mode-btn bg-surface-light dark:bg-surface-dark rounded-lg p-2 flex flex-col items-center justify-center text-text-muted-dark cursor-pointer" data-time="300">
+        <img class="w-6 h-6 mb-1 rounded-full" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD1nFHg2EQR0KGnk298OmqBLnTf3zCKSboiNQU-olnm_sG9jz5MoanU-ekeg1fnpWKy1xjAVtzCzelLfc-AGS6fU6zvgHKpqNMic8TLjyTQT_zHlKgNpocXut6juT1dKQ-lgHqOZxYsWqODEKQdto1lVZeXzRLaZTWCNXuhPgdcnC-xsg5V5S-45Gbt3YGHnwoAHOUyDFh-P2SkvGcJEeJXki3yPRwNNffaCYRz0C4ZrNlfovfgr-_EBbxXAFBQ4nFCPfDEg1bdstg"/>
+        <span>WinGo 5m</span>
+      </div>
+    </div>
+
+    <!-- Current Game Info -->
+    <div class="bg-primary/10 dark:bg-primary/20 rounded-lg p-4 relative">
+      <div class="grid grid-cols-2">
+        <div>
+          <button class="flex items-center space-x-1 text-xs bg-black/10 dark:bg-black/20 px-2 py-1 rounded-full mb-2">
+            <span class="material-icons text-sm">menu_book</span>
+            <span>How to play</span>
+          </button>
+          <p class="text-sm font-semibold" id="gameTitle">WinGo 30s</p>
+          <div class="flex space-x-1 mt-2" id="recentResults">
+            <div class="w-6 h-6 bg-gray-100 dark:bg-gray-800 rounded"><img src="assets/png/1to9/6.png" class="number-full"></div>
+            <div class="w-6 h-6 bg-gray-100 dark:bg-gray-800 rounded"><img src="assets/png/1to9/5.png" class="number-full"></div>
+            <div class="w-6 h-6 bg-gray-100 dark:bg-gray-800 rounded"><img src="assets/png/1to9/9.png" class="number-full"></div>
+          </div>
+        </div>
+        <div class="text-right">
+          <p class="text-sm text-text-muted-dark">Time remaining</p>
+          <div class="flex justify-end items-center space-x-1 my-1.5 text-2xl" id="timerDisplay">
+            <span class="timer-segment">0</span><span class="timer-segment">0</span><span class="font-bold">:</span><span class="timer-segment">0</span><span class="timer-segment">0</span>
+          </div>
+          <p class="text-xs text-text-muted-dark" id="periodNumber">20251228010001</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Betting Interface -->
+    <div class="bg-surface-light dark:bg-surface-dark rounded-lg p-4 space-y-4">
+      <div class="grid grid-cols-3 gap-3">
+        <button class="bg-green-500 text-white font-bold py-2.5 rounded-lg shadow bet-color" data-color="green">Green</button>
+        <button class="bg-purple-500 text-white font-bold py-2.5 rounded-lg shadow bet-color" data-color="violet">Violet</button>
+        <button class="bg-red-500 text-white font-bold py-2.5 rounded-lg shadow bet-color" data-color="red">Red</button>
+      </div>
+      <div class="grid grid-cols-5 gap-3 text-center">
+        <button class="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-red-500 bet-number" data-number="0" data-color="violet"><img src="assets/png/1to9/0.png" class="number-full"></button>
+        <button class="w-12 h-12 rounded-full bg-green-500 bet-number" data-number="1" data-color="green"><img src="assets/png/1to9/1.png" class="number-full"></button>
+        <button class="w-12 h-12 rounded-full bg-red-500 bet-number" data-number="2" data-color="red"><img src="assets/png/1to9/2.png" class="number-full"></button>
+        <button class="w-12 h-12 rounded-full bg-green-500 bet-number" data-number="3" data-color="green"><img src="assets/png/1to9/3.png" class="number-full"></button>
+        <button class="w-12 h-12 rounded-full bg-red-500 bet-number" data-number="4" data-color="red"><img src="assets/png/1to9/4.png" class="number-full"></button>
+        <button class="w-12 h-12 rounded-full bg-gradient-to-br from-green-500 to-purple-500 bet-number" data-number="5" data-color="violet"><img src="assets/png/1to9/5.png" class="number-full"></button>
+        <button class="w-12 h-12 rounded-full bg-red-500 bet-number" data-number="6" data-color="red"><img src="assets/png/1to9/6.png" class="number-full"></button>
+        <button class="w-12 h-12 rounded-full bg-green-500 bet-number" data-number="7" data-color="green"><img src="assets/png/1to9/7.png" class="number-full"></button>
+        <button class="w-12 h-12 rounded-full bg-red-500 bet-number" data-number="8" data-color="red"><img src="assets/png/1to9/8.png" class="number-full"></button>
+        <button class="w-12 h-12 rounded-full bg-green-500 bet-number" data-number="9" data-color="green"><img src="assets/png/1to9/9.png" class="number-full"></button>
+      </div>
+      <div class="grid grid-cols-2 gap-0">
+        <button class="bg-orange-400 text-white font-bold py-2.5 rounded-l-lg bet-bigsmall" data-type="big">Big</button>
+        <button class="bg-blue-500 text-white font-bold py-2.5 rounded-r-lg bet-bigsmall" data-type="small">Small</button>
+      </div>
+    </div>
+
+    <!-- Game History -->
+    <div class="bg-surface-light dark:bg-surface-dark rounded-lg overflow-hidden">
+      <div class="flex border-b border-gray-200 dark:border-gray-700 text-sm">
+        <button class="flex-1 py-3 bg-primary/20 text-primary font-semibold">Game history</button>
+      </div>
+      <div class="text-xs" id="gameHistory">
+        <div class="grid grid-cols-4 gap-2 text-center p-2 font-bold bg-primary/10 text-primary">
+          <div>Period</div><div>Number</div><div>Size</div><div>Color</div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- COMPACT BET MODAL -->
+<div id="betModal" class="fixed inset-0 z-50 flex items-end justify-center hidden">
+  <div class="fixed inset-0 bg-black/50" onclick="closeBetModal()"></div>
+  <div class="relative w-full max-w-sm bg-white dark:bg-gray-800 rounded-t-xl modal-slide-up overflow-hidden">
+    <div id="modalHeader" class="p-3">
+      <div class="flex items-center justify-between text-white">
+        <div class="flex items-center space-x-2">
+          <div id="modalIcon" class="w-8 h-8 rounded-full flex items-center justify-center bg-white/20"></div>
+          <div><h3 class="font-bold text-sm" id="modalGameName">WinGo 30s</h3><p id="modalBetType" class="text-xs opacity-80"></p></div>
+        </div>
+        <button onclick="closeBetModal()"><span class="material-icons text-xl">close</span></button>
+      </div>
+    </div>
+    <div class="p-2 border-b border-gray-100 dark:border-gray-700">
+      <div class="grid grid-cols-4 gap-1.5" id="amountGrid">
+        <button onclick="setAmount(1)" class="bg-primary text-white py-1.5 rounded text-xs font-medium">1</button>
+        <button onclick="setAmount(10)" class="bg-gray-100 dark:bg-gray-700 py-1.5 rounded text-xs font-medium">10</button>
+        <button onclick="setAmount(100)" class="bg-gray-100 dark:bg-gray-700 py-1.5 rounded text-xs font-medium">100</button>
+        <button onclick="setAmount(1000)" class="bg-gray-100 dark:bg-gray-700 py-1.5 rounded text-xs font-medium">1000</button>
+      </div>
+    </div>
+    <div class="p-2 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
+      <span class="text-xs text-gray-500">Quantity</span>
+      <div class="flex items-center bg-gray-100 dark:bg-gray-700 rounded overflow-hidden">
+        <button onclick="adjustQuantity(-1)" class="px-3 py-1 text-lg font-bold">-</button>
+        <span id="quantityValue" class="px-4 font-bold text-sm">1</span>
+        <button onclick="adjustQuantity(1)" class="px-3 py-1 text-lg font-bold">+</button>
+      </div>
+    </div>
+    <div class="p-2 grid grid-cols-6 gap-1" id="modalMultiplierGrid">
+      <button onclick="setMultiplier(1)" class="bg-green-500 text-white py-1 rounded text-[10px]">X1</button>
+      <button onclick="setMultiplier(5)" class="bg-gray-100 dark:bg-gray-700 py-1 rounded text-[10px]">X5</button>
+      <button onclick="setMultiplier(10)" class="bg-gray-100 dark:bg-gray-700 py-1 rounded text-[10px]">X10</button>
+      <button onclick="setMultiplier(20)" class="bg-gray-100 dark:bg-gray-700 py-1 rounded text-[10px]">X20</button>
+      <button onclick="setMultiplier(50)" class="bg-gray-100 dark:bg-gray-700 py-1 rounded text-[10px]">X50</button>
+      <button onclick="setMultiplier(100)" class="bg-gray-100 dark:bg-gray-700 py-1 rounded text-[10px]">X100</button>
+    </div>
+    <div class="p-3 grid grid-cols-2 gap-2">
+      <button onclick="closeBetModal()" class="bg-gray-200 dark:bg-gray-700 py-2.5 rounded font-bold text-xs">Cancel</button>
+      <button onclick="confirmBet()" id="confirmBetBtn" class="py-2.5 rounded font-bold text-white text-xs">Total amount ₹<span id="totalAmount">1.00</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- WIN NOTIFICATION (New Frame) -->
+<div id="winNotification" class="fixed inset-0 z-[100] flex items-center justify-center hidden">
+  <div class="absolute inset-0 bg-black/80 backdrop-blur-sm"></div>
+
+  <!-- Animated Coins -->
+  <div id="coinContainer"></div>
+
+  <!-- Fireworks -->
+  <div id="fireworkContainer"></div>
+
+  <div class="relative z-20 w-full max-w-[430px] flex flex-col items-center px-6">
+    <!-- Top Icon -->
+    <div class="absolute -top-14 left-1/2 -translate-x-1/2 z-20">
+      <div class="relative">
+        <div class="absolute inset-0 flex items-center justify-center -z-10">
+          <div class="w-40 h-20 bg-gradient-to-r from-orange-400/0 via-yellow-400/40 to-orange-400/0 blur-xl"></div>
+        </div>
+        <div class="w-24 h-24 bg-gradient-to-b from-yellow-300 to-yellow-600 rounded-full border-4 border-yellow-200 flex items-center justify-center gold-glow">
+          <span class="material-icons text-white text-5xl">rocket_launch</span>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Main Modal -->
+    <div class="modal-gradient w-full rounded-[40px] pt-16 pb-8 px-6 text-center shadow-2xl border-4 border-white/20 relative">
+      <!-- Congratulations Banner -->
+      <div class="absolute top-8 left-[-12px] right-[-12px] h-12 bg-gradient-to-b from-orange-400 to-orange-600 flex items-center justify-center shadow-lg z-10" style="clip-path: polygon(5% 0, 95% 0, 100% 50%, 95% 100%, 5% 100%, 0 50%);">
+        <h2 class="text-white text-xl font-black uppercase tracking-wider italic">Congratulations</h2>
+      </div>
+      
+      <div class="mt-10 space-y-6">
+        <!-- Lottery Results -->
+        <div class="flex items-center justify-center gap-2">
+          <span class="text-white/90 text-xs font-medium mr-1">Lottery results</span>
+          <div id="winResultColor" class="bg-primary/50 text-white border border-white/30 px-3 py-1 rounded-md text-[10px] font-bold">Red</div>
+          <div id="winResultNumber" class="bg-white/30 text-white border border-white/30 px-3 py-1 rounded-full text-[10px] font-bold">8</div>
+          <div id="winResultSize" class="bg-primary/50 text-white border border-white/30 px-3 py-1 rounded-md text-[10px] font-bold">Big</div>
+        </div>
+        
+        <!-- Ticket -->
+        <div class="bg-white ticket-cut pt-4 pb-8 px-4 shadow-inner relative overflow-hidden">
+          <div class="absolute top-0 left-0 w-full h-1 bg-slate-200/50"></div>
+          <p class="text-primary text-[10px] font-bold uppercase tracking-[0.2em] mb-1">Bonus</p>
+          <h3 id="winBonusDisplay" class="text-primary text-4xl font-black mb-2">₹1,084.86</h3>
+          <p class="text-slate-400 text-[9px] font-medium">Period: <span id="winPeriodNumberDisplay">20260124100010777</span></p>
+          <div class="absolute bottom-1 left-0 right-0 flex justify-around opacity-10">
+            <div class="w-2 h-2 rounded-full bg-slate-900"></div>
+            <div class="w-2 h-2 rounded-full bg-slate-900"></div>
+            <div class="w-2 h-2 rounded-full bg-slate-900"></div>
+            <div class="w-2 h-2 rounded-full bg-slate-900"></div>
+            <div class="w-2 h-2 rounded-full bg-slate-900"></div>
+          </div>
+        </div>
+        
+        <!-- Auto Close Timer -->
+        <div class="flex items-center justify-center gap-2 text-white/90">
+          <div class="w-5 h-5 border-2 border-white/30 rounded-full flex items-center justify-center">
+            <div class="w-2.5 h-2.5 bg-white rounded-full"></div>
+          </div>
+          <span id="winTimer" class="text-xs font-medium">3 seconds auto close</span>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Close Button -->
+    <button onclick="closeWinNotification()" class="mt-8 w-12 h-12 bg-black/20 hover:bg-black/40 border-2 border-white/60 text-white rounded-full flex items-center justify-center transition-all backdrop-blur-sm">
+      <span class="material-icons text-2xl">close</span>
+    </button>
+  </div>
+</div>
+
+<!-- LOSS NOTIFICATION (New Frame) -->
+<div id="lossNotification" class="fixed inset-0 z-[100] flex items-center justify-center hidden">
+  <div class="absolute inset-0 bg-black/80 backdrop-blur-sm"></div>
+
+  <div class="relative z-20 w-full max-w-[400px] aspect-[9/19.5] flex flex-col items-center justify-center">
+    <div class="relative w-full flex flex-col items-center">
+      <!-- Top Decoration -->
+      <div class="relative z-20 -mb-12 flex flex-col items-center">
+        <div class="absolute top-4 w-64 h-24 flex justify-between px-2 opacity-80">
+          <svg class="w-24 h-16 fill-blue-200 transform -scale-x-100" viewBox="0 0 100 50">
+            <path d="M0,50 Q10,20 50,10 Q60,10 70,20 Q80,30 100,30 Q80,40 50,45 Q20,50 0,50Z"></path>
+          </svg>
+          <svg class="w-24 h-16 fill-blue-200" viewBox="0 0 100 50">
+            <path d="M0,50 Q10,20 50,10 Q60,10 70,20 Q80,30 100,30 Q80,40 50,45 Q20,50 0,50Z"></path>
+          </svg>
+        </div>
+        <div class="relative mt-12 w-80 h-16 flex justify-center items-center">
+          <svg class="absolute w-full h-full drop-shadow-lg" viewBox="0 0 400 100">
+            <path d="M20,60 Q20,30 60,30 L340,30 Q380,30 380,60 L360,80 L40,80 Z" fill="#D1D5DB"></path>
+            <path d="M40,30 L40,80 M360,30 L360,80" stroke="#94A3B8" stroke-width="1"></path>
+          </svg>
+        </div>
+        <div class="absolute -top-4 w-28 h-28 rounded-full bg-gradient-to-b from-blue-100 to-blue-300 p-1 shadow-xl border-4 border-white/50">
+          <div class="w-full h-full rounded-full border-2 border-blue-200/50 flex items-center justify-center bg-gradient-to-tr from-slate-200 to-blue-50">
+            <span class="material-icons text-5xl text-blue-400">rocket_launch</span>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Main Modal -->
+      <div class="w-full bg-gradient-to-b from-blue-100 to-blue-200 rounded-[3rem] p-8 pt-16 flex flex-col items-center shadow-2xl z-10 border border-white/40">
+        <h3 class="text-blue-900/60 text-xs font-bold tracking-[0.2em] uppercase mb-4">
+          Better Luck Next Time
+        </h3>
+        
+        <!-- Lottery Results -->
+        <div class="flex items-center space-x-3 mb-10">
+          <span class="text-slate-500 text-sm font-medium">Lottery results</span>
+          <div class="flex items-center space-x-2">
+            <span id="lossResultColor" class="px-3 py-1 bg-green-500 text-white text-xs font-bold rounded-full shadow-sm">Green</span>
+            <span id="lossResultNumber" class="w-6 h-6 flex items-center justify-center bg-white text-slate-700 text-xs font-bold rounded-full shadow-sm">1</span>
+            <span id="lossResultSize" class="px-3 py-1 bg-slate-400 text-white text-xs font-bold rounded-full shadow-sm uppercase">Small</span>
+          </div>
+        </div>
+        
+        <!-- Loss Amount Display -->
+        <div class="w-full relative">
+          <div class="w-full h-8 bg-blue-300/30 rounded-full shadow-inner border border-blue-400/20"></div>
+          <div class="absolute top-4 left-1/2 -translate-x-1/2 w-[85%] bg-white rounded-b-xl shadow-lg p-6 flex flex-col items-center">
+            <span class="text-slate-400 text-sm font-medium uppercase tracking-widest mb-1">Loss</span>
+            <span id="lossAmountDisplay" class="text-slate-800 text-4xl font-bold">₹0.00</span>
+            <div class="absolute bottom-0 left-0 w-full h-1 border-b-2 border-dotted border-slate-200"></div>
+          </div>
+        </div>
+        
+        <div class="h-28"></div>
+        
+        <!-- Auto Close Timer -->
+        <div class="flex items-center text-slate-500/80 text-sm font-medium">
+          <span id="lossTimer" class="timer-animate mr-2">3 seconds auto close</span>
+        </div>
+      </div>
+      
+      <!-- Close Button -->
+      <button onclick="closeLossNotification()" class="mt-8 w-12 h-12 rounded-full border-2 border-white/30 flex items-center justify-center hover:bg-white/10 transition-colors group">
+        <span class="material-icons text-white text-3xl group-hover:scale-110 transition-transform">close</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+let currentGame = { mode: 30, period: 20251228010001, betsClosed: false, results: [6, 5, 9] };
+let betState = { type: '', value: '', color: '', amount: 1, quantity: 1, multiplier: 1 };
+let timerInterval, sound1, sound2, winSound, lossSound;
+let timeLeft = 30;
+let currentBet = null;
+let winTimerInterval, lossTimerInterval;
+let winTimerCount = 3, lossTimerCount = 3;
+
+function initAudio() {
+  sound1 = new Audio('assets/sound/1.mp3');
+  sound2 = new Audio('assets/sound/2.mp3');
+  winSound = new Audio('assets/sound/win.mp3');
+  lossSound = new Audio('assets/sound/loss.mp3');
+  
+  // Fallback for win/loss sounds if not available
+  try {
+    winSound.volume = 0.7;
+    lossSound.volume = 0.5;
+  } catch(e) {}
+}
+
+function startTimer() {
+  clearInterval(timerInterval);
+  timeLeft = currentGame.mode;
+  currentGame.betsClosed = false;
+  updateTimerUI();
+
+  timerInterval = setInterval(() => {
+    timeLeft--;
+    updateTimerUI();
+
+    // SOUND LOGIC: 5,4,3,2 play sound1 | 1 play sound2
+    if (timeLeft <= 5 && timeLeft > 1) { 
+        sound1.currentTime = 0; 
+        sound1.play().catch(()=>{}); 
+    } else if (timeLeft === 1) { 
+        sound2.currentTime = 0; 
+        sound2.play().catch(()=>{}); 
+    }
+
+    if (timeLeft === 5) {
+      currentGame.betsClosed = true;
+      document.querySelectorAll('.bet-number, .bet-color, .bet-bigsmall').forEach(b => b.classList.add('opacity-50', 'cursor-not-allowed'));
+      closeBetModal();
+    }
+
+    if (timeLeft <= 0) {
+      clearInterval(timerInterval);
+      handleRoundEnd();
+    }
+  }, 1000);
+}
+
+function updateTimerUI() {
+  const display = document.getElementById('timerDisplay');
+  const segs = display.querySelectorAll('.timer-segment');
+  const m = Math.floor(timeLeft / 60);
+  const s = timeLeft % 60;
+  segs[0].textContent = Math.floor(m / 10);
+  segs[1].textContent = m % 10;
+  segs[2].textContent = Math.floor(s / 10);
+  segs[3].textContent = s % 10;
+  if (timeLeft <= 5) display.classList.add('pulse-red');
+  else display.classList.remove('pulse-red');
+}
+
+function createCoins() {
+  const container = document.getElementById('coinContainer');
+  container.innerHTML = '';
+  
+  for (let i = 0; i < 20; i++) {
+    const coin = document.createElement('div');
+    coin.className = 'coin';
+    coin.innerHTML = '💰';
+    coin.style.left = Math.random() * 100 + 'vw';
+    coin.style.fontSize = (Math.random() * 20 + 10) + 'px';
+    coin.style.animationDelay = Math.random() * 1 + 's';
+    container.appendChild(coin);
+  }
+}
+
+function createFireworks() {
+  const container = document.getElementById('fireworkContainer');
+  container.innerHTML = '';
+  
+  const colors = ['#FFD700', '#FF4500', '#32CD32', '#1E90FF', '#FF1493'];
+  
+  for (let i = 0; i < 10; i++) {
+    const firework = document.createElement('div');
+    firework.className = 'firework';
+    firework.style.left = Math.random() * 100 + 'vw';
+    firework.style.top = Math.random() * 100 + 'vh';
+    firework.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+    firework.style.animationDelay = Math.random() * 0.5 + 's';
+    container.appendChild(firework);
+  }
+}
+
+function showWinNotification(amount, bonus, period) {
+  // Update UI with real data
+  const num = currentGame.results[0] || 8;
+  const color = (num === 0 || num === 5) ? 'violet' : (num % 2 === 0 ? 'red' : 'green');
+  const size = num >= 5 ? 'Big' : 'Small';
+  
+  document.getElementById('winResultColor').textContent = color.charAt(0).toUpperCase() + color.slice(1);
+  document.getElementById('winResultNumber').textContent = num;
+  document.getElementById('winResultSize').textContent = size;
+  document.getElementById('winBonusDisplay').textContent = `₹${bonus.toFixed(2)}`;
+  document.getElementById('winPeriodNumberDisplay').textContent = period;
+  
+  // Update wallet balance
+  const wallet = document.getElementById('walletBalance');
+  let bal = parseFloat(wallet.textContent.replace('₹', ''));
+  wallet.textContent = `₹${(bal + bonus).toFixed(2)}`;
+  
+  // Create animations (keep existing coin/firework animations)
+  createCoins();
+  createFireworks();
+  
+  // Show notification
+  const winModal = document.getElementById('winNotification');
+  winModal.classList.remove('hidden');
+  
+  // Play win sound
+  if (winSound) {
+    winSound.currentTime = 0;
+    winSound.play().catch(() => {});
+  }
+  
+  // Start auto close timer
+  winTimerCount = 3;
+  document.getElementById('winTimer').textContent = winTimerCount + ' seconds auto close';
+  clearInterval(winTimerInterval);
+  
+  winTimerInterval = setInterval(() => {
+    winTimerCount--;
+    document.getElementById('winTimer').textContent = winTimerCount + ' seconds auto close';
+    
+    if (winTimerCount <= 0) {
+      closeWinNotification();
+    }
+  }, 1000);
+}
+
+function closeWinNotification() {
+  clearInterval(winTimerInterval);
+  const winModal = document.getElementById('winNotification');
+  winModal.classList.add('hidden');
+  
+  // Clean up animations
+  document.getElementById('coinContainer').innerHTML = '';
+  document.getElementById('fireworkContainer').innerHTML = '';
+}
+
+function showLossNotification(amount, number, color, size, period) {
+  // Update UI with real data
+  document.getElementById('lossResultColor').textContent = color.charAt(0).toUpperCase() + color.slice(1);
+  document.getElementById('lossResultNumber').textContent = number;
+  document.getElementById('lossResultSize').textContent = size;
+  document.getElementById('lossAmountDisplay').textContent = `-₹${amount.toFixed(2)}`;
+  
+  // Show notification
+  const lossModal = document.getElementById('lossNotification');
+  lossModal.classList.remove('hidden');
+  
+  // Play loss sound
+  if (lossSound) {
+    lossSound.currentTime = 0;
+    lossSound.play().catch(() => {});
+  }
+  
+  // Start auto close timer
+  lossTimerCount = 3;
+  document.getElementById('lossTimer').textContent = lossTimerCount + ' seconds auto close';
+  clearInterval(lossTimerInterval);
+  
+  lossTimerInterval = setInterval(() => {
+    lossTimerCount--;
+    document.getElementById('lossTimer').textContent = lossTimerCount + ' seconds auto close';
+    
+    if (lossTimerCount <= 0) {
+      closeLossNotification();
+    }
+  }, 1000);
+}
+
+function closeLossNotification() {
+  clearInterval(lossTimerInterval);
+  const lossModal = document.getElementById('lossNotification');
+  lossModal.classList.add('hidden');
+}
+
+function handleRoundEnd() {
+  const num = Math.floor(Math.random() * 10);
+  const color = (num === 0 || num === 5) ? 'violet' : (num % 2 === 0 ? 'red' : 'green');
+  const size = num >= 5 ? 'Big' : 'Small';
+  
+  // Add to history
+  const history = document.getElementById('gameHistory');
+  const row = `<div class="grid grid-cols-4 gap-2 text-center p-2 items-center border-b dark:border-gray-700 animate-pulse">
+    <div class="text-text-muted-dark">${currentGame.period}</div>
+    <div class="flex justify-center"><img src="assets/png/1to9/${num}.png" class="w-5 h-5"></div>
+    <div>${size}</div>
+    <div class="flex justify-center"><div class="w-2 h-2 rounded-full bg-${color === 'violet' ? 'purple' : color}-500"></div></div>
+  </div>`;
+  history.insertAdjacentHTML('afterbegin', history.children[0].outerHTML + row);
+  if(history.children.length > 11) history.removeChild(history.lastChild);
+
+  // Check for win/loss based on current bet
+  if (currentBet) {
+    const betAmount = currentBet.amount * currentBet.quantity * currentBet.multiplier;
+    let isWin = false;
+    
+    if (currentBet.type === 'number') {
+      isWin = parseInt(currentBet.value) === num;
+    } else if (currentBet.type === 'color') {
+      isWin = currentBet.color === color;
+    } else if (currentBet.type === 'bigsmall') {
+      isWin = currentBet.value === size.toLowerCase();
+    }
+    
+    if (isWin) {
+      const winBonus = betAmount * (currentBet.type === 'number' ? 9 : currentBet.type === 'color' ? 2 : 1.8);
+      showWinNotification(betAmount + winBonus, winBonus, currentGame.period);
+    } else {
+      showLossNotification(betAmount, num, color, size, currentGame.period);
+    }
+    
+    currentBet = null;
+  }
+  
+  // Update game state
+  currentGame.period++;
+  document.getElementById('periodNumber').textContent = currentGame.period;
+  document.querySelectorAll('.bet-number, .bet-color, .bet-bigsmall').forEach(b => b.classList.remove('opacity-50', 'cursor-not-allowed'));
+  
+  currentGame.results.unshift(num);
+  if(currentGame.results.length > 3) currentGame.results.pop();
+  document.getElementById('recentResults').innerHTML = currentGame.results.map(n => `<div class="w-6 h-6 bg-gray-100 dark:bg-gray-800 rounded"><img src="assets/png/1to9/${n}.png" class="number-full"></div>`).join('');
+  
+  // Start next round
+  setTimeout(() => {
+    startTimer();
+  }, 4000);
+}
+
+function openBetModal(type, value, color) {
+  if (currentGame.betsClosed) return;
+  betState = { type, value, color, amount: 1, quantity: 1, multiplier: 1 };
+  const header = document.getElementById('modalHeader');
+  const btn = document.getElementById('confirmBetBtn');
+  const cName = color === 'orange' ? 'orange' : (color === 'blue' ? 'blue' : (color === 'violet' ? 'purple' : color));
+  header.className = `p-3 bg-${cName}-500`;
+  btn.className = `py-2.5 rounded font-bold text-white text-xs bg-${cName}-600`;
+  document.getElementById('modalBetType').textContent = `Select ${value}`;
+  document.getElementById('modalGameName').textContent = document.getElementById('gameTitle').textContent;
+  updateTotal();
+  document.getElementById('betModal').classList.remove('hidden');
+}
+
+function closeBetModal() { document.getElementById('betModal').classList.add('hidden'); }
+function setAmount(a) { 
+    betState.amount = a; 
+    document.querySelectorAll('#amountGrid button').forEach(b => {
+        b.className = parseInt(b.textContent) === a ? "bg-primary text-white py-1.5 rounded text-xs font-medium" : "bg-gray-100 dark:bg-gray-700 py-1.5 rounded text-xs font-medium";
+    });
+    updateTotal(); 
+}
+function adjustQuantity(q) { betState.quantity = Math.max(1, betState.quantity + q); document.getElementById('quantityValue').textContent = betState.quantity; updateTotal(); }
+function setMultiplier(m) { 
+    betState.multiplier = m; 
+    document.querySelectorAll('#modalMultiplierGrid button').forEach(b => {
+        b.className = b.textContent.includes('X'+m) ? "bg-green-500 text-white py-1 rounded text-[10px]" : "bg-gray-100 dark:bg-gray-700 py-1 rounded text-[10px]";
+    });
+    updateTotal(); 
+}
+function updateTotal() { document.getElementById('totalAmount').textContent = (betState.amount * betState.quantity * betState.multiplier).toFixed(2); }
+
+function confirmBet() {
+  const wallet = document.getElementById('walletBalance');
+  let bal = parseFloat(wallet.textContent.replace('₹', ''));
+  let total = parseFloat(document.getElementById('totalAmount').textContent);
+  if (bal >= total) {
+    wallet.textContent = `₹${(bal - total).toFixed(2)}`;
+    currentBet = { ...betState, amount: betState.amount, quantity: betState.quantity, multiplier: betState.multiplier };
+    closeBetModal();
+  } else { alert("Insufficient Balance"); }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  initAudio();
+  startTimer();
+  
+  document.querySelectorAll('.mode-btn').forEach(btn => {
+    btn.onclick = () => {
+      document.querySelectorAll('.mode-btn').forEach(b => {
+        b.className = "mode-btn bg-surface-light dark:bg-surface-dark rounded-lg p-2 flex flex-col items-center justify-center text-text-muted-dark cursor-pointer";
+      });
+      btn.className = "mode-btn bg-primary/20 dark:bg-primary/30 border border-primary text-primary rounded-lg p-2 flex flex-col items-center justify-center cursor-pointer";
+      currentGame.mode = parseInt(btn.dataset.time);
+      document.getElementById('gameTitle').textContent = btn.querySelector('span').textContent;
+      startTimer();
+    }
+  });
+
+  document.querySelectorAll('.bet-number').forEach(b => b.onclick = () => openBetModal('number', b.dataset.number, b.dataset.color));
+  document.querySelectorAll('.bet-color').forEach(b => b.onclick = () => openBetModal('color', b.dataset.color, b.dataset.color));
+  document.querySelectorAll('.bet-bigsmall').forEach(b => b.onclick = () => openBetModal('bigsmall', b.dataset.type, b.dataset.type === 'big' ? 'orange' : 'blue'));
+  
+  // Close notifications on click
+  document.getElementById('winNotification').onclick = closeWinNotification;
+  document.getElementById('lossNotification').onclick = closeLossNotification;
+  
+  document.body.onclick = () => { 
+    if(sound1) sound1.muted = false; 
+    if(sound2) sound2.muted = false; 
+    if(winSound) winSound.muted = false;
+    if(lossSound) lossSound.muted = false;
+  };
+});
+</script>
+</body>
+</html>
+
+
